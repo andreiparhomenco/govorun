@@ -1,0 +1,30 @@
+<Window x:Class="Govorun.App.Overlay.BubbleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
+        Width="160" Height="30" ResizeMode="NoResize" IsHitTestVisible="False">
+    <Border CornerRadius="10" Background="#A61C1F26" Padding="8,0">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.3" Color="#1F5AD8"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Image x:Name="LogoImage" Grid.Column="0" Width="18" Height="18"
+                   VerticalAlignment="Center" Margin="0,0,6,0"
+                   Source="pack://application:,,,/Assets/logo.png"/>
+
+            <Canvas x:Name="EqCanvas" Grid.Column="1" Height="16" VerticalAlignment="Center"
+                    ClipToBounds="False"/>
+
+            <TextBlock x:Name="TimerText" Grid.Column="2" Text="0:00"
+                       Foreground="#DDE7FF" FontFamily="Segoe UI" FontWeight="SemiBold"
+                       FontSize="10.5" VerticalAlignment="Center" Margin="6,0,0,0"/>
+        </Grid>
+    </Border>
+</Window>

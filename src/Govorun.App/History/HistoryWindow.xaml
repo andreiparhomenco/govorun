@@ -1,0 +1,100 @@
+<Window x:Class="Govorun.App.History.HistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Govorun" Width="480" Height="600" MinHeight="420"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI" FontSize="14">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Styles/Brand.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border Style="{StaticResource BrandWindowShell}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header: logo + title + close, gradient underline (matches the wizard) -->
+            <Grid Grid.Row="0" Margin="24,18,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Image Grid.Column="0" Width="40" Height="40" Margin="0,0,12,0"
+                       Source="pack://application:,,,/Assets/logo.png"/>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Govorun" FontSize="20" FontWeight="Bold" Foreground="{StaticResource BrandInk}"/>
+                    <TextBlock Text="История расшифровок и настройки" FontSize="12"
+                               Foreground="{StaticResource BrandMuted}" TextWrapping="Wrap"/>
+                </StackPanel>
+                <Button Grid.Column="2" Content="✕" Width="32" Height="32" Click="OnCloseClicked"
+                        Style="{StaticResource BrandIconButton}" FontSize="14" VerticalAlignment="Top"/>
+            </Grid>
+            <Rectangle Grid.Row="1" Height="3" Margin="24,12,24,0" RadiusX="1.5" RadiusY="1.5"
+                       Fill="{StaticResource BrandHeaderUnderline}"/>
+
+            <!-- Tab switcher -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="20,14,20,0">
+                <Button x:Name="HistoryTabButton" Content="История" Style="{StaticResource BrandTabButton}"
+                        Click="OnHistoryTabClicked"/>
+                <Button x:Name="SettingsTabButton" Content="Настройки" Style="{StaticResource BrandTabButton}"
+                        Margin="6,0,0,0" Click="OnSettingsTabClicked"/>
+            </StackPanel>
+
+            <!-- Body -->
+            <Grid Grid.Row="3" Margin="20,14,20,20">
+
+                <!-- Tab: История -->
+                <Grid x:Name="HistoryPanel">
+                    <TextBlock x:Name="EmptyState" Text="Пока ничего не надиктовано."
+                               Foreground="{StaticResource BrandMuted}" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Visibility="Collapsed"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="EntriesList"/>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- Tab: Настройки -->
+                <ScrollViewer x:Name="SettingsPanel" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Микрофон" FontWeight="SemiBold" Margin="0,0,0,8"
+                                   Foreground="{StaticResource BrandInk}"/>
+                        <ComboBox x:Name="MicCombo" Margin="0,0,0,22" SelectionChanged="OnMicChanged"/>
+
+                        <TextBlock Text="Горячая клавиша" FontWeight="SemiBold" Margin="0,0,0,8"
+                                   Foreground="{StaticResource BrandInk}"/>
+                        <RadioButton x:Name="HotkeyCtrlWin" Content="Ctrl + Win" GroupName="settings-hk"
+                                     Checked="OnControlChanged"/>
+                        <RadioButton x:Name="HotkeyCtrlSpace" Content="Ctrl + Space" GroupName="settings-hk"
+                                     Checked="OnControlChanged"/>
+                        <RadioButton x:Name="HotkeyDoubleCtrl" Content="Двойное нажатие Ctrl" GroupName="settings-hk"
+                                     Checked="OnControlChanged" Margin="0,0,0,22"/>
+
+                        <TextBlock Text="Режим записи" FontWeight="SemiBold" Margin="0,0,0,8"
+                                   Foreground="{StaticResource BrandInk}"/>
+                        <RadioButton x:Name="ModeHold" GroupName="settings-act" Checked="OnControlChanged">
+                            <TextBlock Text="Держу — запись, отпустил — стоп" TextWrapping="Wrap"/>
+                        </RadioButton>
+                        <RadioButton x:Name="ModeToggle" GroupName="settings-act" Checked="OnControlChanged"
+                                     Margin="0,0,0,22">
+                            <TextBlock Text="Нажал — запись, ещё раз — стоп" TextWrapping="Wrap"/>
+                        </RadioButton>
+
+                        <CheckBox x:Name="AutoStartCheck" Content="Запускать при входе в Windows"
+                                  Foreground="{StaticResource BrandInk}"
+                                  Checked="OnAutoStartChanged" Unchecked="OnAutoStartChanged"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

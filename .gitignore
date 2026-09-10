@@ -1,0 +1,17 @@
+bin/
+obj/
+publish/
+models/
+installer/output/
+*.user
+.vs/
+
+# Fetched by tools/get-vcruntime.ps1 during the installer build — no need to
+# vendor Microsoft redistributables in the repo.
+assets/vcruntime/
+
+# Scratch screenshots dropped in the repo root.
+*.png
+!assets/logo-source.png
+!src/Govorun.App/Assets/*.png
+

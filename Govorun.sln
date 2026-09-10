@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2B37031E-6050-4764-945C-422FE9DDB304}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govorun.Core", "src\Govorun.Core\Govorun.Core.csproj", "{72E13C20-741D-4782-847C-3EC08EB0BF54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govorun.App", "src\Govorun.App\Govorun.App.csproj", "{6945870E-07CF-47C9-ACC0-37BD6D7AC920}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{B97F415A-2A4E-49C9-82D4-BCFA9086C2D5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govorun.Core.Tests", "tests\Govorun.Core.Tests\Govorun.Core.Tests.csproj", "{717A3C35-0C2D-4071-AA86-AE67244884CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govorun.Cli", "src\Govorun.Cli\Govorun.Cli.csproj", "{BC81B896-EE5C-41A2-9A0B-F2F428488227}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{72E13C20-741D-4782-847C-3EC08EB0BF54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72E13C20-741D-4782-847C-3EC08EB0BF54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72E13C20-741D-4782-847C-3EC08EB0BF54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72E13C20-741D-4782-847C-3EC08EB0BF54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6945870E-07CF-47C9-ACC0-37BD6D7AC920}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6945870E-07CF-47C9-ACC0-37BD6D7AC920}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6945870E-07CF-47C9-ACC0-37BD6D7AC920}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6945870E-07CF-47C9-ACC0-37BD6D7AC920}.Release|Any CPU.Build.0 = Release|Any CPU
+		{717A3C35-0C2D-4071-AA86-AE67244884CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{717A3C35-0C2D-4071-AA86-AE67244884CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{717A3C35-0C2D-4071-AA86-AE67244884CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{717A3C35-0C2D-4071-AA86-AE67244884CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC81B896-EE5C-41A2-9A0B-F2F428488227}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC81B896-EE5C-41A2-9A0B-F2F428488227}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC81B896-EE5C-41A2-9A0B-F2F428488227}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC81B896-EE5C-41A2-9A0B-F2F428488227}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{72E13C20-741D-4782-847C-3EC08EB0BF54} = {2B37031E-6050-4764-945C-422FE9DDB304}
+		{6945870E-07CF-47C9-ACC0-37BD6D7AC920} = {2B37031E-6050-4764-945C-422FE9DDB304}
+		{717A3C35-0C2D-4071-AA86-AE67244884CC} = {B97F415A-2A4E-49C9-82D4-BCFA9086C2D5}
+		{BC81B896-EE5C-41A2-9A0B-F2F428488227} = {2B37031E-6050-4764-945C-422FE9DDB304}
+	EndGlobalSection
+EndGlobal

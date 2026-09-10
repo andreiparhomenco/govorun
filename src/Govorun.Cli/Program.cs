@@ -1,0 +1,104 @@
+using Govorun.Core.Asr;
+using Govorun.Core.Audio;
+using Govorun.Core.Benchmark;
+using Govorun.Core.Text;
+using NAudio.Wave;
+
+if (args.Length == 0)
+{
+    Console.WriteLine("""
+        Govorun CLI — smoke tests for the ASR core.
+
+        Usage:
+          govorun-cli bench [modelsDir]             Measure RTF on synthetic audio
+          govorun-cli transcribe <file.wav> [dir]   Transcribe a wav file
+          govorun-cli inject "<text>"               E2E test of text injection via Notepad
+          govorun-cli mic [seconds]                 List capture devices, record, report RMS
+        """);
+    return 1;
+}
+
+var command = args[0].ToLowerInvariant();
+
+if (command == "mic")
+{
+    var devices = AudioRecorder.ListDevices();
+    if (devices.Count == 0)
+    {
+        Console.Error.WriteLine("No active capture devices found");
+        return 1;
+    }
+    foreach (var d in devices)
+        Console.WriteLine($"{(d.IsDefault ? "*" : " ")} {d.Name}");
+
+    int seconds = args.Length > 1 && int.TryParse(args[1], out var s) ? s : 3;
+    var recorder = new AudioRecorder();
+    if (args.Length > 2 && int.TryParse(args[2], out var idx) && idx < devices.Count)
+        recorder.DeviceId = devices[idx].Id;
+    float peak = 0;
+    recorder.LevelChanged += level => peak = Math.Max(peak, level);
+    Console.WriteLine($"Recording {seconds} s from {(recorder.DeviceId is null ? "default device" : "device #" + args[2])}...");
+    recorder.Start();
+    Thread.Sleep(seconds * 1000);
+    var recorded = recorder.Stop();
+    double rms = recorded.Length > 0 ? Math.Sqrt(recorded.Select(x => (double)x * x).Average()) : 0;
+    Console.WriteLine($"Samples: {recorded.Length} ({(double)recorded.Length / ParakeetEngine.SampleRate:F1} s @16kHz), RMS: {rms:F4}, peak level: {peak:F4}");
+    return recorded.Length > 0 ? 0 : 1;
+}
+
+if (command == "inject-debug")
+    return Govorun.Cli.InjectE2E.Debug();
+if (command == "inject")
+    return Govorun.Cli.InjectE2E.Run(args.Length > 1 ? args[1] : "Привет, Говорун! Injection test 123.");
+
+string modelsDir = command switch
+{
+    "bench" when args.Length > 1 => args[1],
+    "transcribe" when args.Length > 2 => args[2],
+    _ => ModelPaths.DefaultDirectory,
+};
+
+Console.WriteLine($"Loading model from {modelsDir}...");
+var loadStart = System.Diagnostics.Stopwatch.StartNew();
+using var engine = new ParakeetEngine(ModelPaths.Locate(modelsDir));
+Console.WriteLine($"Model loaded in {loadStart.Elapsed.TotalSeconds:F1} s");
+
+switch (command)
+{
+    case "bench":
+    {
+        var result = RtfBenchmark.Run(engine);
+        Console.WriteLine($"Audio: {result.AudioSeconds:F1} s, elapsed: {result.ElapsedSeconds:F2} s, RTF: {result.Rtf:F1}");
+        return 0;
+    }
+    case "transcribe":
+    {
+        var samples = ReadWav(args[1]);
+        var result = engine.Transcribe(samples);
+        Console.WriteLine($"Audio: {result.AudioSeconds:F1} s, elapsed: {result.ElapsedSeconds:F2} s, RTF: {result.Rtf:F1}");
+        Console.WriteLine($"Text: {TextCleaner.Clean(result.Text)}");
+        return 0;
+    }
+    default:
+        Console.Error.WriteLine($"Unknown command '{command}'");
+        return 1;
+}
+
+static float[] ReadWav(string path)
+{
+    using var reader = new AudioFileReader(path); // gives float32 at source rate/channels
+    var samples = new List<float>();
+    var buffer = new float[reader.WaveFormat.SampleRate * reader.WaveFormat.Channels];
+    int read;
+    while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+    {
+        int channels = reader.WaveFormat.Channels;
+        for (int i = 0; i < read; i += channels)
+        {
+            float mono = 0;
+            for (int c = 0; c < channels && i + c < read; c++) mono += buffer[i + c];
+            samples.Add(mono / channels);
+        }
+    }
+    return AudioRecorder.Resample(samples, reader.WaveFormat.SampleRate, ParakeetEngine.SampleRate);
+}
