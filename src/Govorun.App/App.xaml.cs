@@ -26,6 +26,8 @@ public partial class App : Application
     private HistoryStore? _historyStore;
     private HistoryWindow? _historyWindow;
     private System.Windows.Threading.DispatcherTimer? _watchdog;
+    private System.Windows.Threading.DispatcherTimer? _deferredLoad;
+    private bool _loadingNoticeShown;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -65,9 +67,23 @@ public partial class App : Application
         _settings = AppSettings.Load();
         _historyStore = new HistoryStore(AppSettings.HistoryPath);
 
+        bool launchedAtLogon = e.Args.Contains(AutoStart.Flag, StringComparer.OrdinalIgnoreCase);
+        Log.Information("Launch: {Kind}", launchedAtLogon ? "autostart" : "manual");
+        if (_settings.AutoStart)
+        {
+            try { AutoStart.RefreshIfPresent(); }
+            catch (Exception ex) { Log.Warning(ex, "Autostart entry refresh failed"); }
+        }
+
         _dictation = new DictationService();
         _dictation.MicDeviceId = _settings.MicDeviceId;
-        _dictation.StartEngineLoad(ModelPaths.DefaultDirectory);
+        // At logon, give Windows a head start: the model takes ~10 s of CPU and 700 MB,
+        // which would land right on top of everything else starting up. The first run
+        // (onboarding) waits on the engine, so it always loads immediately.
+        if (launchedAtLogon && _settings.OnboardingCompleted)
+            ScheduleDeferredEngineLoad();
+        else
+            _dictation.StartEngineLoad(ModelPaths.DefaultDirectory);
 
         _historyWindow = new HistoryWindow(_historyStore, _settings);
 
@@ -78,6 +94,11 @@ public partial class App : Application
         _hotkeys = new HotkeyManager { Mode = _settings.Hotkey, Activation = _settings.Activation };
         _hotkeys.Pressed += () => Dispatcher.BeginInvoke(() =>
         {
+            if (_dictation!.State == DictationState.Loading)
+            {
+                OnHotkeyWhileLoading();
+                return;
+            }
             if (_hotkeys!.Activation == ActivationMode.PushToTalk)
                 _dictation!.StartRecording();
             else
@@ -89,14 +110,49 @@ public partial class App : Application
 
         // Hourly memory watchdog for long background sessions.
         _watchdog = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(1) };
+        // Private bytes is the real footprint; the working set alone swings wildly because
+        // Windows trims it while the app idles in the tray.
         _watchdog.Tick += (_, _) =>
-            Log.Information("Watchdog: working set {Mb} MB", Environment.WorkingSet / (1024 * 1024));
+        {
+            using var self = System.Diagnostics.Process.GetCurrentProcess();
+            Log.Information("Watchdog: private {Private} MB, working set {Ws} MB",
+                self.PrivateMemorySize64 / (1024 * 1024), self.WorkingSet64 / (1024 * 1024));
+        };
         _watchdog.Start();
 
         if (!_settings.OnboardingCompleted)
         {
             var wizard = new WizardWindow(_settings, _dictation, _hotkeys);
             wizard.Show();
+        }
+    }
+
+    private static readonly TimeSpan LogonLoadDelay = TimeSpan.FromSeconds(45);
+
+    private void ScheduleDeferredEngineLoad()
+    {
+        _deferredLoad = new System.Windows.Threading.DispatcherTimer { Interval = LogonLoadDelay };
+        _deferredLoad.Tick += (_, _) =>
+        {
+            _deferredLoad!.Stop();
+            _dictation!.StartEngineLoad(ModelPaths.DefaultDirectory, background: true);
+        };
+        _deferredLoad.Start();
+        Log.Information("Engine load deferred by {Seconds} s after logon", LogonLoadDelay.TotalSeconds);
+    }
+
+    /// <summary>
+    /// The user wants to dictate before the deferred load got going: start (or speed up)
+    /// the load now and say so — a silent no-op in the first minute looks like a broken app.
+    /// </summary>
+    private void OnHotkeyWhileLoading()
+    {
+        _deferredLoad?.Stop();
+        _dictation!.StartEngineLoad(ModelPaths.DefaultDirectory, background: false);
+        if (!_loadingNoticeShown)
+        {
+            _loadingNoticeShown = true;
+            _tray!.ShowNotification("Govorun", "Модель загружается, через несколько секунд можно диктовать");
         }
     }
 
@@ -208,6 +264,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _watchdog?.Stop();
+        _deferredLoad?.Stop();
         _hotkeys?.Dispose();
         _tray?.Dispose();
         _dictation?.Dispose();

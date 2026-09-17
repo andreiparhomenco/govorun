@@ -3,7 +3,7 @@
 ; and models\ with the ONNX weights).
 
 #define AppName "Govorun"
-#define AppVersion "0.1.1"
+#define AppVersion "0.1.2"
 #define AppExe "Govorun.App.exe"
 
 [Setup]
@@ -49,8 +49,12 @@ Source: "..\models\decoder_joint-model.int8.onnx"; DestDir: "{app}\models"; Flag
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 
 [Registry]
+; --autostart tells the app it was launched at logon, so it defers the model load
+; instead of competing with Windows startup. Keep in sync with AutoStart.Flag.
+; The Run key only works because the exe manifest is asInvoker: Windows silently
+; skips Run entries that require elevation.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; \
-    ValueName: "Govorun"; ValueData: """{app}\{#AppExe}"""; Tasks: autostart; Flags: uninsdeletevalue
+    ValueName: "Govorun"; ValueData: """{app}\{#AppExe}"" --autostart"; Tasks: autostart; Flags: uninsdeletevalue
 
 [UninstallDelete]
 ; "Установил и забыл": подчищаем настройки и логи при удалении.
@@ -67,13 +71,20 @@ Filename: "{app}\{#AppExe}"; Description: "Запустить {#AppName}"; Flags
 
 [Code]
 // Закрыть работающий Govorun перед установкой поверх, чтобы файлы не были заблокированы.
+// 0.1.0/0.1.1 работали с правами администратора, а установщик их не имеет: taskkill
+// получит отказ в доступе (код 1). Тогда просим пользователя закрыть Govorun самому,
+// иначе копирование упадёт на заблокированном exe. 0 = закрыт, 128 = не был запущен.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#AppExe}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Sleep(500);
   Result := '';
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#AppExe}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if ResultCode = 1 then
+    Result := 'Запущенный Govorun не удалось закрыть автоматически. ' +
+              'Закройте его: значок в трее → «Выход», затем нажмите «Назад» и «Установить» ещё раз.'
+  else
+    Sleep(500);
 end;
 
 [UninstallRun]

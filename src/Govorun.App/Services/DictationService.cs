@@ -23,7 +23,9 @@ public sealed class DictationService : IDisposable
 {
     private readonly AudioRecorder _recorder = new();
     private readonly object _lock = new();
+    private readonly TaskCompletionSource _engineReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private ParakeetEngine? _engine;
+    private Thread? _loadThread;
     private DictationState _state = DictationState.Loading;
 
     public DictationState State
@@ -41,7 +43,8 @@ public sealed class DictationService : IDisposable
     public event Action<string>? SilentAudioDetected;
 
     public TimeSpan RecordingElapsed => _recorder.Elapsed;
-    public Task EngineReady { get; private set; } = Task.CompletedTask;
+    /// <summary>Completes when the model is loaded; faults if loading failed.</summary>
+    public Task EngineReady => _engineReady.Task;
     public double? LastRtf { get; private set; }
 
     /// <summary>When set, recognized text is not injected — used by the onboarding wizard.</summary>
@@ -67,28 +70,58 @@ public sealed class DictationService : IDisposable
         };
     }
 
-    public void StartEngineLoad(string modelsDirectory)
+    /// <summary>
+    /// Loads the model on a dedicated thread. Only the first call starts a load; later
+    /// calls can only raise the priority of the one in flight. <paramref name="background"/>
+    /// runs it below normal priority so a logon launch doesn't compete with the rest of
+    /// Windows starting up; a foreground call (manual launch, or the user pressing the
+    /// hotkey while a background load is still running) promotes it to normal.
+    /// </summary>
+    public void StartEngineLoad(string modelsDirectory, bool background = false)
     {
-        EngineReady = Task.Run(() =>
+        var priority = background ? ThreadPriority.BelowNormal : ThreadPriority.Normal;
+        lock (_lock)
         {
-            try
+            if (_loadThread is not null)
             {
-                var engine = new ParakeetEngine(ModelPaths.Locate(modelsDirectory));
-                lock (_lock)
+                if (!background && _loadThread.IsAlive)
                 {
-                    _engine = engine;
-                    _state = DictationState.Idle;
+                    try { _loadThread.Priority = ThreadPriority.Normal; }
+                    catch (ThreadStateException) { /* finished in the meantime */ }
                 }
-                StateChanged?.Invoke(DictationState.Idle);
-                Log.Information("Engine loaded from {Dir}", modelsDirectory);
+                return;
             }
-            catch (Exception ex)
+            _loadThread = new Thread(() => LoadEngine(modelsDirectory))
             {
-                Log.Error(ex, "Engine load failed");
-                EngineLoadFailed?.Invoke(ex.Message);
-                throw;
+                IsBackground = true,
+                Name = "Govorun engine load",
+                Priority = priority,
+            };
+        }
+        Log.Information("Engine load started ({Priority})", priority);
+        _loadThread.Start();
+    }
+
+    private void LoadEngine(string modelsDirectory)
+    {
+        try
+        {
+            var engine = new ParakeetEngine(ModelPaths.Locate(modelsDirectory));
+            lock (_lock)
+            {
+                _engine = engine;
+                _state = DictationState.Idle;
             }
-        });
+            StateChanged?.Invoke(DictationState.Idle);
+            Log.Information("Engine loaded from {Dir}", modelsDirectory);
+            _engineReady.TrySetResult();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Engine load failed");
+            EngineLoadFailed?.Invoke(ex.Message);
+            _engineReady.TrySetException(ex);
+        }
     }
 
     public ParakeetEngine? Engine

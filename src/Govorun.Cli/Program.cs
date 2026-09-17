@@ -11,6 +11,7 @@ if (args.Length == 0)
 
         Usage:
           govorun-cli bench [modelsDir]             Measure RTF on synthetic audio
+          govorun-cli mem [modelsDir]               Private memory after load and 10/60/120 s runs
           govorun-cli transcribe <file.wav> [dir]   Transcribe a wav file
           govorun-cli inject "<text>"               E2E test of text injection via Notepad
           govorun-cli mic [seconds]                 List capture devices, record, report RMS
@@ -53,7 +54,7 @@ if (command == "inject")
 
 string modelsDir = command switch
 {
-    "bench" when args.Length > 1 => args[1],
+    "bench" or "mem" when args.Length > 1 => args[1],
     "transcribe" when args.Length > 2 => args[2],
     _ => ModelPaths.DefaultDirectory,
 };
@@ -69,6 +70,24 @@ switch (command)
     {
         var result = RtfBenchmark.Run(engine);
         Console.WriteLine($"Audio: {result.AudioSeconds:F1} s, elapsed: {result.ElapsedSeconds:F2} s, RTF: {result.Rtf:F1}");
+        return 0;
+    }
+    case "mem":
+    {
+        // Private bytes, not working set: Windows trims the working set of an idle
+        // process, which made the in-app watchdog numbers swing between 50 MB and 1.3 GB.
+        static long PrivateMb()
+        {
+            using var self = System.Diagnostics.Process.GetCurrentProcess();
+            return self.PrivateMemorySize64 / (1024 * 1024);
+        }
+
+        Console.WriteLine($"after load          private {PrivateMb(),5} MB");
+        foreach (var (label, seconds) in new[] { ("10 s", 10), ("60 s", 60), ("120 s", 120), ("10 s again", 10) })
+        {
+            var result = engine.Transcribe(RtfBenchmark.GenerateTestSignal(seconds));
+            Console.WriteLine($"after {label,-13} private {PrivateMb(),5} MB   ({result.ElapsedSeconds:F2} s, RTF {result.Rtf:F1})");
+        }
         return 0;
     }
     case "transcribe":

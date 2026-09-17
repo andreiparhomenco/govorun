@@ -16,7 +16,7 @@ public static class RtfBenchmark
         return engine.Transcribe(samples);
     }
 
-    internal static float[] GenerateTestSignal(int seconds)
+    public static float[] GenerateTestSignal(int seconds)
     {
         var rng = new Random(42);
         int n = seconds * ParakeetEngine.SampleRate;

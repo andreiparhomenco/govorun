@@ -51,10 +51,22 @@ public sealed class ParakeetEngine : IDisposable
         _state2Dims = FixedStateDims(_decoderJoint.InputMetadata["input_states_2"].Dimensions);
     }
 
+    /// <remarks>
+    /// The CPU memory arena is disabled deliberately. With it on, the process sat at
+    /// ~1.77 GB private after the first dictation although the int8 weights are 670 MB:
+    /// prepacked weights are carved from the arena at load and it grows in oversized
+    /// blocks it never returns. Without it memory plateaus at ~710 MB (govorun-cli mem).
+    /// Measured cost: RTF −3–7% on typical short dictations, ~−20% on minute-long ones.
+    /// Keeping the arena but shrinking it after each run was tried too: 800 MB with
+    /// 1 GB spikes, and slower than this on short clips. The memory pattern planner
+    /// needs the arena, so it is switched off alongside it.
+    /// </remarks>
     private static SessionOptions SessionOptionsWith(int intraOpThreads) => new()
     {
         GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
         IntraOpNumThreads = intraOpThreads,
+        EnableCpuMemArena = false,
+        EnableMemoryPattern = false,
     };
 
     /// <summary>
