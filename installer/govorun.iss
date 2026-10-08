@@ -3,7 +3,7 @@
 ; and models\ with the ONNX weights).
 
 #define AppName "Govorun"
-#define AppVersion "0.1.2"
+#define AppVersion "0.1.3"
 #define AppExe "Govorun.App.exe"
 
 [Setup]

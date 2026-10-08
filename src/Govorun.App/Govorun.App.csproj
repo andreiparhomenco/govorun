@@ -11,7 +11,7 @@
     <Product>Govorun</Product>
     <Company>Govorun</Company>
     <Copyright>© 2026 Govorun</Copyright>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <ApplicationIcon>govorun.ico</ApplicationIcon>
   </PropertyGroup>
 

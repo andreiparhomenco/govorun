@@ -14,17 +14,13 @@ public class DonationPolicyTests
         WordsDictated = 20_000,
     };
 
-    // Links.Donation ships as a placeholder, which disables every prompt. These tests
-    // describe the rules that apply once a real page is configured, so they are skipped
-    // until then rather than asserting the opposite of the intended behaviour.
-    private static bool Configured => Links.DonationConfigured;
+    [Fact]
+    public void DonationLinkIsConfigured() =>
+        Assert.True(Links.DonationConfigured, "A placeholder link hides every donation entry point.");
 
     [Fact]
-    public void PromptsOnceThresholdsAreMet()
-    {
-        if (!Configured) return;
+    public void PromptsOnceThresholdsAreMet() =>
         Assert.True(DonationPolicy.ShouldPrompt(Eligible(), Now));
-    }
 
     [Fact]
     public void DoesNotPromptBeforeEnoughDictations()
@@ -50,8 +46,7 @@ public class DonationPolicyTests
         DonationPolicy.MarkPrompted(settings, Now);
 
         Assert.False(DonationPolicy.ShouldPrompt(settings, Now + TimeSpan.FromDays(100)));
-        if (Configured)
-            Assert.True(DonationPolicy.ShouldPrompt(settings, Now + TimeSpan.FromDays(200)));
+        Assert.True(DonationPolicy.ShouldPrompt(settings, Now + TimeSpan.FromDays(200)));
     }
 
     [Fact]
@@ -64,7 +59,7 @@ public class DonationPolicyTests
         // Still at 150 dictations: the next ask waits for 600.
         Assert.False(DonationPolicy.ShouldPrompt(settings, later));
         settings.DictationCount = 600;
-        if (Configured) Assert.True(DonationPolicy.ShouldPrompt(settings, later));
+        Assert.True(DonationPolicy.ShouldPrompt(settings, later));
     }
 
     [Fact]

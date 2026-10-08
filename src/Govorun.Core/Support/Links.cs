@@ -4,11 +4,10 @@ namespace Govorun.Core.Support;
 public static class Links
 {
     /// <summary>
-    /// CloudTips donation page. Replace the placeholder with the real page created at
-    /// cloudtips.ru — until then <see cref="DonationConfigured"/> is false and every
-    /// donation entry point stays hidden, so we never show a dead link.
+    /// CloudTips donation page. <see cref="DonationConfigured"/> guards every entry point,
+    /// so a placeholder here hides them all rather than showing a dead link.
     /// </summary>
-    public const string Donation = "https://pay.cloudtips.ru/p/PLACEHOLDER";
+    public const string Donation = "https://pay.cloudtips.ru/p/8417cafd";
 
     public static bool DonationConfigured => !Donation.EndsWith("PLACEHOLDER", StringComparison.Ordinal);
 
