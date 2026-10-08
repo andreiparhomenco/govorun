@@ -1,6 +1,7 @@
 using System.IO;
 using System.Threading;
 using System.Windows;
+using Govorun.App.Donation;
 using Govorun.App.History;
 using Govorun.App.Onboarding;
 using Govorun.App.Overlay;
@@ -10,6 +11,8 @@ using Govorun.Core.Asr;
 using Govorun.Core.History;
 using Govorun.Core.Hotkeys;
 using Govorun.Core.Settings;
+using Govorun.Core.Support;
+using Govorun.Core.Updates;
 using Serilog;
 
 namespace Govorun.App;
@@ -27,6 +30,8 @@ public partial class App : Application
     private HistoryWindow? _historyWindow;
     private System.Windows.Threading.DispatcherTimer? _watchdog;
     private System.Windows.Threading.DispatcherTimer? _deferredLoad;
+    private System.Windows.Threading.DispatcherTimer? _updateTimer;
+    private UpdateInfo? _pendingUpdate;
     private bool _loadingNoticeShown;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -66,6 +71,12 @@ public partial class App : Application
 
         _settings = AppSettings.Load();
         _historyStore = new HistoryStore(AppSettings.HistoryPath);
+
+        if (_settings.FirstRunUtc is null)
+        {
+            _settings.FirstRunUtc = DateTime.UtcNow;
+            _settings.Save();
+        }
 
         bool launchedAtLogon = e.Args.Contains(AutoStart.Flag, StringComparer.OrdinalIgnoreCase);
         Log.Information("Launch: {Kind}", launchedAtLogon ? "autostart" : "manual");
@@ -119,6 +130,7 @@ public partial class App : Application
                 self.PrivateMemorySize64 / (1024 * 1024), self.WorkingSet64 / (1024 * 1024));
         };
         _watchdog.Start();
+        ScheduleUpdateChecks();
 
         if (!_settings.OnboardingCompleted)
         {
@@ -126,6 +138,89 @@ public partial class App : Application
             wizard.Show();
         }
     }
+
+    /// <summary>
+    /// Counts what was dictated (the donation ask is the only consumer) and, when the
+    /// policy allows, shows that ask. Runs on the ASR thread, hence the marshalling.
+    /// </summary>
+    private void CountDictation(string text)
+    {
+        _settings.DictationCount++;
+        _settings.WordsDictated += text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+        // Every tenth dictation, not every one: this writes to disk.
+        if (_settings.DictationCount % 10 == 0) _settings.Save();
+
+        if (!DonationPolicy.ShouldPrompt(_settings, DateTime.UtcNow)) return;
+        Dispatcher.BeginInvoke(ShowDonationPrompt);
+    }
+
+    private void ShowDonationPrompt()
+    {
+        // Re-check on the UI thread: two dictations could both have passed the test.
+        if (!DonationPolicy.ShouldPrompt(_settings, DateTime.UtcNow)) return;
+        DonationPolicy.MarkPrompted(_settings, DateTime.UtcNow);
+        _settings.Save();
+
+        var window = new ThanksWindow(_settings);
+        window.DonateRequested += () => OpenUrl(Links.Donation);
+        window.Show();
+        Log.Information("Donation prompt shown ({Count} of {Max})",
+            _settings.DonationPromptsShown, DonationPolicy.MaxPrompts);
+    }
+
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not open {Url}", url);
+        }
+    }
+
+    /// <summary>
+    /// Starts the daily update check. Deliberately not at logon: the first request waits
+    /// out <see cref="FirstUpdateCheckDelay"/> so a privacy-minded app isn't reaching for
+    /// the network the moment Windows starts.
+    /// </summary>
+    private void ScheduleUpdateChecks()
+    {
+        _updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = FirstUpdateCheckDelay };
+        _updateTimer.Tick += async (_, _) =>
+        {
+            _updateTimer!.Interval = UpdateCheckInterval;
+            if (!_settings.CheckForUpdates) return;
+            if (_settings.LastUpdateCheckUtc is { } last && DateTime.UtcNow - last < UpdateCheckInterval) return;
+
+            _settings.LastUpdateCheckUtc = DateTime.UtcNow;
+            _settings.Save();
+
+            var update = await UpdateChecker.CheckAsync().ConfigureAwait(true);
+            if (update is null) return;
+            OnUpdateFound(update);
+        };
+        _updateTimer.Start();
+    }
+
+    private void OnUpdateFound(UpdateInfo update)
+    {
+        _pendingUpdate = update;
+        var version = $"{update.Version.Major}.{update.Version.Minor}.{Math.Max(update.Version.Build, 0)}";
+        _tray!.ShowUpdateAvailable(update.Version);
+        Log.Information("Update available: {Version}", version);
+
+        // The menu entry stays; the notification appears once per version.
+        if (_settings.SkippedVersion == version) return;
+        _settings.SkippedVersion = version;
+        _settings.Save();
+        _tray.ShowNotification("Govorun", $"Доступна версия {version} — нажмите, чтобы открыть страницу обновления");
+    }
+
+    private static readonly TimeSpan FirstUpdateCheckDelay = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
 
     private static readonly TimeSpan LogonLoadDelay = TimeSpan.FromSeconds(45);
 
@@ -180,7 +275,11 @@ public partial class App : Application
         });
 
         dictation.LevelChanged += level => bubble.PushLevel(level);
-        dictation.TextRecognized += text => _historyStore!.Add(text);
+        dictation.TextRecognized += text =>
+        {
+            _historyStore!.Add(text);
+            CountDictation(text);
+        };
         dictation.SilentAudioDetected += message => Dispatcher.BeginInvoke(() =>
             tray.ShowNotification("Внимание", message));
         dictation.EngineLoadFailed += message => Dispatcher.BeginInvoke(() =>
@@ -191,6 +290,8 @@ public partial class App : Application
             tray.ShowNotification("Govorun", $"Не удалось начать запись: {message}"));
 
         tray.HistoryRequested += () => Dispatcher.BeginInvoke(() => _historyWindow!.ShowOrActivate());
+        tray.DonateRequested += () => OpenUrl(Links.Donation);
+        tray.UpdateRequested += () => OpenUrl(_pendingUpdate?.Url ?? Links.Repository);
         tray.ExitRequested += () =>
         {
             Log.Information("Exit requested");
@@ -202,6 +303,12 @@ public partial class App : Application
         tray.ActivationSelected += mode => ApplyActivation(mode, notify: true);
 
         var history = _historyWindow!;
+        history.DonateRequested += () => OpenUrl(Links.Donation);
+        history.CheckForUpdatesToggled += enabled =>
+        {
+            _settings.CheckForUpdates = enabled;
+            _settings.Save();
+        };
         history.AutoStartToggled += enabled => ApplyAutoStart(enabled);
         history.MicSelected += id => ApplyMic(id, notify: false);
         history.HotkeySelected += mode => ApplyHotkey(mode, notify: false);
@@ -265,6 +372,9 @@ public partial class App : Application
     {
         _watchdog?.Stop();
         _deferredLoad?.Stop();
+        _updateTimer?.Stop();
+        // Counters are only flushed every tenth dictation; keep the tail on exit.
+        _settings.Save();
         _hotkeys?.Dispose();
         _tray?.Dispose();
         _dictation?.Dispose();

@@ -1,0 +1,49 @@
+<Window x:Class="Govorun.App.Donation.ThanksWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Govorun" Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI" FontSize="14">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Styles/Brand.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border Style="{StaticResource BrandWindowShell}">
+        <StackPanel Margin="24,20,24,22">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Image Grid.Column="0" Width="40" Height="40" Margin="0,0,12,0"
+                       Source="pack://application:,,,/Assets/logo.png"/>
+                <TextBlock Grid.Column="1" Text="Спасибо, что пользуетесь Govorun"
+                           FontSize="18" FontWeight="Bold" TextWrapping="Wrap"
+                           VerticalAlignment="Center" Foreground="{StaticResource BrandInk}"/>
+                <Button Grid.Column="2" Content="✕" Width="32" Height="32" VerticalAlignment="Top"
+                        Style="{StaticResource BrandIconButton}" FontSize="14" Click="OnLaterClicked"/>
+            </Grid>
+            <Rectangle Height="3" Margin="0,12,0,16" RadiusX="1.5" RadiusY="1.5"
+                       Fill="{StaticResource BrandHeaderUnderline}"/>
+
+            <TextBlock x:Name="StatsText" TextWrapping="Wrap" Margin="0,0,0,10"
+                       Foreground="{StaticResource BrandInk}"/>
+            <TextBlock TextWrapping="Wrap" Margin="0,0,0,20" Foreground="{StaticResource BrandMuted}"
+                       Text="Govorun бесплатный, с открытым кодом и работает без интернета — у него нет подписки и рекламы. Если он вам полезен, поддержите разработку: это помогает делать распознавание точнее."/>
+
+            <Button Content="Поддержать разработку" Style="{StaticResource BrandButton}"
+                    Height="40" Click="OnDonateClicked"/>
+            <Button Content="Напомнить позже" Style="{StaticResource BrandTabButton}"
+                    Margin="0,8,0,0" Click="OnLaterClicked"/>
+            <Button Content="Уже поддержал(а) — больше не предлагать"
+                    Style="{StaticResource BrandTabButton}" Margin="0,2,0,0"
+                    FontSize="12" Click="OnAlreadyDonatedClicked"/>
+        </StackPanel>
+    </Border>
+</Window>

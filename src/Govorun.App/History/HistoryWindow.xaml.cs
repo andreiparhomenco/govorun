@@ -9,6 +9,7 @@ using Govorun.Core.Audio;
 using Govorun.Core.History;
 using Govorun.Core.Hotkeys;
 using Govorun.Core.Settings;
+using Govorun.Core.Support;
 
 namespace Govorun.App.History;
 
@@ -32,6 +33,8 @@ public partial class HistoryWindow : Window
     public event Action<HotkeyMode>? HotkeySelected;
     public event Action<ActivationMode>? ActivationSelected;
     public event Action<bool>? AutoStartToggled;
+    public event Action<bool>? CheckForUpdatesToggled;
+    public event Action? DonateRequested;
 
     public HistoryWindow(HistoryStore store, AppSettings settings)
     {
@@ -124,6 +127,8 @@ public partial class HistoryWindow : Window
         ModeHold.IsChecked = _settings.Activation == ActivationMode.PushToTalk;
         ModeToggle.IsChecked = _settings.Activation == ActivationMode.Toggle;
         AutoStartCheck.IsChecked = _settings.AutoStart;
+        UpdateCheck.IsChecked = _settings.CheckForUpdates;
+        DonatePanel.Visibility = Links.DonationConfigured ? Visibility.Visible : Visibility.Collapsed;
 
         _suppressSettingsEvents = false;
     }
@@ -149,6 +154,14 @@ public partial class HistoryWindow : Window
         if (_suppressSettingsEvents) return;
         AutoStartToggled?.Invoke(AutoStartCheck.IsChecked == true);
     }
+
+    private void OnUpdateCheckChanged(object sender, RoutedEventArgs e)
+    {
+        if (_suppressSettingsEvents) return;
+        CheckForUpdatesToggled?.Invoke(UpdateCheck.IsChecked == true);
+    }
+
+    private void OnDonateClicked(object sender, RoutedEventArgs e) => DonateRequested?.Invoke();
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {

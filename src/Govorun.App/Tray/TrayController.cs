@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using Govorun.App.Services;
 using Govorun.Core.Audio;
 using Govorun.Core.Hotkeys;
+using Govorun.Core.Support;
 using H.NotifyIcon;
 
 namespace Govorun.App.Tray;
@@ -19,6 +20,7 @@ public sealed class TrayController : IDisposable
     private readonly MenuItem _micMenu;
     private readonly MenuItem _controlsMenu;
     private readonly MenuItem _autostartItem;
+    private readonly MenuItem _updateItem;
     private string? _currentMicId;
     private HotkeyMode _currentHotkey;
     private ActivationMode _currentActivation;
@@ -30,6 +32,8 @@ public sealed class TrayController : IDisposable
     public event Action<HotkeyMode>? HotkeySelected;
     public event Action<ActivationMode>? ActivationSelected;
     public event Action? HistoryRequested;
+    public event Action? DonateRequested;
+    public event Action? UpdateRequested;
 
     public TrayController(bool autoStartEnabled, string? currentMicId, HotkeyMode hotkey, ActivationMode activation)
     {
@@ -50,6 +54,10 @@ public sealed class TrayController : IDisposable
         _autostartItem = new MenuItem { Header = "Запускать при входе в Windows", IsCheckable = true, IsChecked = autoStartEnabled };
         _autostartItem.Click += (_, _) => AutoStartToggled?.Invoke(_autostartItem.IsChecked);
 
+        // Hidden until a check finds something newer — see ShowUpdateAvailable.
+        _updateItem = new MenuItem { Header = "Доступно обновление", Visibility = Visibility.Collapsed };
+        _updateItem.Click += (_, _) => UpdateRequested?.Invoke();
+
         var exitItem = new MenuItem { Header = "Выход" };
         exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
@@ -60,6 +68,14 @@ public sealed class TrayController : IDisposable
         menu.Items.Add(_controlsMenu);
         menu.Items.Add(_autostartItem);
         menu.Items.Add(new Separator());
+        menu.Items.Add(_updateItem);
+        // Only when a real donation page is configured, so we never offer a dead link.
+        if (Links.DonationConfigured)
+        {
+            var donateItem = new MenuItem { Header = "Поддержать разработку ♥" };
+            donateItem.Click += (_, _) => DonateRequested?.Invoke();
+            menu.Items.Add(donateItem);
+        }
         menu.Items.Add(exitItem);
 
         _icon = new TaskbarIcon
@@ -162,6 +178,13 @@ public sealed class TrayController : IDisposable
         _controlsMenu.Items.Add(new Separator());
         AddActivation("Держу — запись, отпустил — стоп", ActivationMode.PushToTalk);
         AddActivation("Нажал — запись, ещё раз — стоп", ActivationMode.Toggle);
+    }
+
+    /// <summary>Reveals the update entry in the menu and names the version.</summary>
+    public void ShowUpdateAvailable(Version version)
+    {
+        _updateItem.Header = $"Доступно обновление {version.Major}.{version.Minor}.{Math.Max(version.Build, 0)}";
+        _updateItem.Visibility = Visibility.Visible;
     }
 
     public void ShowNotification(string title, string message) =>

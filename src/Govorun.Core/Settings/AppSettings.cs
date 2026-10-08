@@ -27,6 +27,28 @@ public sealed class AppSettings
     /// <summary>WASAPI capture device ID; null = system default.</summary>
     public string? MicDeviceId { get; set; }
 
+    /// <summary>
+    /// Daily check against the GitHub releases API — the app's only network request.
+    /// On by default, and the Settings tab says plainly what it does.
+    /// </summary>
+    public bool CheckForUpdates { get; set; } = true;
+
+    public DateTime? LastUpdateCheckUtc { get; set; }
+
+    /// <summary>Version the user was already told about, so we don't nag twice.</summary>
+    public string? SkippedVersion { get; set; }
+
+    // Usage counters: they drive the donation ask ("you dictated N words") and nothing else.
+    public DateTime? FirstRunUtc { get; set; }
+    public int DictationCount { get; set; }
+    public long WordsDictated { get; set; }
+
+    public int DonationPromptsShown { get; set; }
+    public DateTime? LastDonationPromptUtc { get; set; }
+
+    /// <summary>Set by "I already donated" — suppresses the ask for good.</summary>
+    public bool DonationPromptSuppressed { get; set; }
+
     private static string Directory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Govorun");
 
