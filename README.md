@@ -21,7 +21,8 @@ src/Govorun.App    — WPF: трей, floating bubble, онбординг-мас
 src/Govorun.Cli    — smoke-тесты: `bench` (RTF), `mem` (память), `transcribe <wav>`,
                      `mic`, `inject`, `model-info <onnx>`
 tests/             — xUnit
-tools/             — download-model.ps1, publish.ps1
+tools/             — download-model.ps1, publish.ps1, build-installer.ps1,
+                     publish-release.ps1 (релиз на GitHub)
 installer/         — Inno Setup скрипт
 ```
 
@@ -32,6 +33,14 @@ tools\download-model.ps1        # скачать веса (~215 МБ) в models\
 dotnet build                    # сборка
 dotnet test                     # тесты
 dotnet run --project src\Govorun.Cli -c Release -- bench models   # замер RTF
+```
+
+## Релиз
+
+```powershell
+tools\build-installer.ps1       # publish + Inno Setup -> installer\output\
+# вписать контрольную сумму в installer\output\release-notes-<версия>.md
+tools\publish-release.ps1       # релиз на GitHub (нужен gh auth login)
 ```
 
 Инсталлятор: `tools\publish.ps1`, затем скомпилировать `installer\govorun.iss` в Inno Setup 6. Инсталлятор self-contained (свой .NET-рантайм) и включает веса модели — на машине пользователя ничего доустанавливать не нужно.
