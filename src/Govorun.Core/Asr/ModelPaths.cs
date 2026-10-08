@@ -2,30 +2,28 @@ using System.IO;
 
 namespace Govorun.Core.Asr;
 
-/// <summary>Locations of the Parakeet TDT ONNX model files.</summary>
-public sealed record ModelPaths(string Preprocessor, string Encoder, string DecoderJoint, string Vocab)
+/// <summary>Locations of the GigaAM v3 ONNX model files.</summary>
+public sealed record ModelPaths(string Preprocessor, string Model, string Vocab)
 {
     /// <summary>
-    /// Resolves model files in <paramref name="directory"/>. Prefers int8-quantized
-    /// variants (smaller, shipped in the installer) and falls back to fp32.
+    /// Resolves model files in <paramref name="directory"/>. Prefers the int8-quantized
+    /// model (smaller, shipped in the installer) and falls back to fp32.
     /// </summary>
     public static ModelPaths Locate(string directory)
     {
-        string Pick(string baseName)
+        string Require(string name)
         {
-            var int8 = Path.Combine(directory, $"{baseName}.int8.onnx");
-            var fp32 = Path.Combine(directory, $"{baseName}.onnx");
-            if (File.Exists(int8)) return int8;
-            if (File.Exists(fp32)) return fp32;
-            throw new FileNotFoundException($"Model file '{baseName}[.int8].onnx' not found in '{directory}'.");
+            var path = Path.Combine(directory, name);
+            if (!File.Exists(path)) throw new FileNotFoundException($"'{path}' not found.");
+            return path;
         }
 
-        var preprocessor = Path.Combine(directory, "nemo128.onnx");
-        var vocab = Path.Combine(directory, "vocab.txt");
-        if (!File.Exists(preprocessor)) throw new FileNotFoundException($"'{preprocessor}' not found.");
-        if (!File.Exists(vocab)) throw new FileNotFoundException($"'{vocab}' not found.");
+        var int8 = Path.Combine(directory, "v3_e2e_ctc.int8.onnx");
+        var model = File.Exists(int8) ? int8 : Require("v3_e2e_ctc.onnx");
 
-        return new ModelPaths(preprocessor, Pick("encoder-model"), Pick("decoder_joint-model"), vocab);
+        // The log-mel extractor is a separate graph with the same waveform-in,
+        // features-out contract; onnx-asr builds and ships it (MIT).
+        return new ModelPaths(Require("gigaam_v3.onnx"), model, Require("v3_e2e_ctc_vocab.txt"));
     }
 
     /// <summary>Default model directory: "models" next to the executable.</summary>

@@ -4,7 +4,8 @@
 
 ## Как это работает
 
-- **Модель**: NVIDIA Parakeet TDT 0.6B V3 (int8 ONNX, ~670 МБ), инференс на CPU через ONNX Runtime (AVX2/AVX-512 задействуются автоматически). Пунктуация и заглавные буквы — из самой модели, без второй LLM. 25 языков, включая русский.
+- **Модель**: Сбер GigaAM v3 E2E CTC (int8 ONNX, ~215 МБ, лицензия MIT), инференс на CPU через ONNX Runtime (AVX2/AVX-512 задействуются автоматически). Русский язык. Пунктуация, заглавные буквы и числа цифрами («двадцать пять процентов» → «25%») — из самой модели, без второй LLM.
+  Препроцессор `gigaam_v3.onnx` (64 мел-канала) берётся из пакета onnx-asr: модель принимает признаки, а не волну, и в репозитории весов этого файла нет.
 - **Хоткей**: двойное нажатие `Ctrl` (по умолчанию) или `Ctrl+Space` — переключается в меню трея.
 - **Вставка**: через буфер обмена (с сохранением и восстановлением исходного содержимого, включая изображения) + `Ctrl+V`; для терминалов — посимвольный ввод через `SendInput`.
 - **Трей**: серый — ожидание, красный — запись, пульсирующий синий — обработка. Возле курсора при записи — плавающий индикатор с осциллографом и таймером.
@@ -13,10 +14,12 @@
 ## Структура
 
 ```
-src/Govorun.Core   — ASR-движок (ONNX: препроцессор → энкодер → TDT-декодер),
-                     захват WASAPI 16 кГц, вставка текста, хоткеи, очистка текста
-src/Govorun.App    — WPF: трей, floating bubble, онбординг-мастер
-src/Govorun.Cli    — smoke-тесты: `bench` (замер RTF) и `transcribe <wav>`
+src/Govorun.Core   — ASR-движок (ONNX: препроцессор → энкодер с CTC-головой),
+                     захват WASAPI 16 кГц, вставка текста, хоткеи, очистка текста,
+                     проверка обновлений
+src/Govorun.App    — WPF: трей, floating bubble, онбординг-мастер, окно доната
+src/Govorun.Cli    — smoke-тесты: `bench` (RTF), `mem` (память), `transcribe <wav>`,
+                     `mic`, `inject`, `model-info <onnx>`
 tests/             — xUnit
 tools/             — download-model.ps1, publish.ps1
 installer/         — Inno Setup скрипт
@@ -25,7 +28,7 @@ installer/         — Inno Setup скрипт
 ## Сборка
 
 ```powershell
-tools\download-model.ps1        # скачать веса (~670 МБ) в models\
+tools\download-model.ps1        # скачать веса (~215 МБ) в models\
 dotnet build                    # сборка
 dotnet test                     # тесты
 dotnet run --project src\Govorun.Cli -c Release -- bench models   # замер RTF

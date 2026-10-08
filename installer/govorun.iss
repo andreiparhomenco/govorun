@@ -3,7 +3,7 @@
 ; and models\ with the ONNX weights).
 
 #define AppName "Govorun"
-#define AppVersion "0.1.3"
+#define AppVersion "0.2.0"
 #define AppExe "Govorun.App.exe"
 
 [Setup]
@@ -38,12 +38,11 @@ Name: "blocknet"; Description: "Запретить Govorun доступ в се�
 Source: "..\publish\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 ; App-local VC++ runtime: onnxruntime.dll не загрузится на машинах без vc_redist.
 Source: "..\assets\vcruntime\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-; Parakeet TDT 0.6B V3 weights (~670 MB int8).
-Source: "..\models\nemo128.onnx"; DestDir: "{app}\models"; Flags: ignoreversion
-Source: "..\models\vocab.txt"; DestDir: "{app}\models"; Flags: ignoreversion
+; GigaAM v3 E2E CTC weights (~215 MB int8) plus its 64-bin log-mel preprocessor.
+Source: "..\models\gigaam_v3.onnx"; DestDir: "{app}\models"; Flags: ignoreversion
+Source: "..\models\v3_e2e_ctc.int8.onnx"; DestDir: "{app}\models"; Flags: ignoreversion
+Source: "..\models\v3_e2e_ctc_vocab.txt"; DestDir: "{app}\models"; Flags: ignoreversion
 Source: "..\models\config.json"; DestDir: "{app}\models"; Flags: ignoreversion
-Source: "..\models\encoder-model.int8.onnx"; DestDir: "{app}\models"; Flags: ignoreversion
-Source: "..\models\decoder_joint-model.int8.onnx"; DestDir: "{app}\models"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"

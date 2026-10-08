@@ -5,11 +5,13 @@ namespace Govorun.Core.Text;
 /// <summary>
 /// Post-processing of model output: strips CJK hallucinations, collapses
 /// runaway word/phrase repetitions, and normalizes whitespace and punctuation spacing.
+/// It deliberately does not touch punctuation, capitalisation or numbers: the GigaAM
+/// E2E model produces those itself ("двадцать пять процентов" → "25%").
 /// </summary>
 public static partial class TextCleaner
 {
-    // CJK ideographs, kana, hangul, fullwidth forms — Parakeet V3 is trained on
-    // European languages; these only ever appear as hallucinations.
+    // CJK ideographs, kana, hangul, fullwidth forms — GigaAM is a Russian model, so
+    // these can only ever be hallucinations. Kept as cheap insurance.
     [GeneratedRegex(@"[ᄀ-ᇿ⺀-〿぀-ヿ㄰-㆏ㇰ-䶿一-鿿ꀀ-꓏가-힯豈-﫿＀-￯]+")]
     private static partial Regex CjkPattern();
 

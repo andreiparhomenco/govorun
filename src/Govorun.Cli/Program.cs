@@ -43,8 +43,36 @@ if (command == "mic")
     Thread.Sleep(seconds * 1000);
     var recorded = recorder.Stop();
     double rms = recorded.Length > 0 ? Math.Sqrt(recorded.Select(x => (double)x * x).Average()) : 0;
-    Console.WriteLine($"Samples: {recorded.Length} ({(double)recorded.Length / ParakeetEngine.SampleRate:F1} s @16kHz), RMS: {rms:F4}, peak level: {peak:F4}");
+    Console.WriteLine($"Samples: {recorded.Length} ({(double)recorded.Length / AsrEngine.SampleRate:F1} s @16kHz), RMS: {rms:F4}, peak level: {peak:F4}");
     return recorded.Length > 0 ? 0 : 1;
+}
+
+if (command == "model-info")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("usage: govorun-cli model-info <model.onnx>");
+        return 1;
+    }
+    using var options = new Microsoft.ML.OnnxRuntime.SessionOptions();
+    using var session = new Microsoft.ML.OnnxRuntime.InferenceSession(args[1], options);
+
+    static void Dump(string title, IReadOnlyDictionary<string, Microsoft.ML.OnnxRuntime.NodeMetadata> meta)
+    {
+        Console.WriteLine(title);
+        foreach (var (name, m) in meta)
+            Console.WriteLine($"  {name,-20} {m.ElementType.Name,-7} [{string.Join(", ", m.Dimensions)}]");
+    }
+
+    Dump("inputs:", session.InputMetadata);
+    Dump("outputs:", session.OutputMetadata);
+    if (session.ModelMetadata.CustomMetadataMap.Count > 0)
+    {
+        Console.WriteLine("metadata:");
+        foreach (var (k, v) in session.ModelMetadata.CustomMetadataMap)
+            Console.WriteLine($"  {k} = {v}");
+    }
+    return 0;
 }
 
 if (command == "inject-debug")
@@ -61,7 +89,7 @@ string modelsDir = command switch
 
 Console.WriteLine($"Loading model from {modelsDir}...");
 var loadStart = System.Diagnostics.Stopwatch.StartNew();
-using var engine = new ParakeetEngine(ModelPaths.Locate(modelsDir));
+using var engine = new AsrEngine(ModelPaths.Locate(modelsDir));
 Console.WriteLine($"Model loaded in {loadStart.Elapsed.TotalSeconds:F1} s");
 
 switch (command)
@@ -119,5 +147,5 @@ static float[] ReadWav(string path)
             samples.Add(mono / channels);
         }
     }
-    return AudioRecorder.Resample(samples, reader.WaveFormat.SampleRate, ParakeetEngine.SampleRate);
+    return AudioRecorder.Resample(samples, reader.WaveFormat.SampleRate, AsrEngine.SampleRate);
 }

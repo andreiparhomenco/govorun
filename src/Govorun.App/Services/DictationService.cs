@@ -24,7 +24,7 @@ public sealed class DictationService : IDisposable
     private readonly AudioRecorder _recorder = new();
     private readonly object _lock = new();
     private readonly TaskCompletionSource _engineReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private ParakeetEngine? _engine;
+    private AsrEngine? _engine;
     private Thread? _loadThread;
     private DictationState _state = DictationState.Loading;
 
@@ -106,7 +106,7 @@ public sealed class DictationService : IDisposable
     {
         try
         {
-            var engine = new ParakeetEngine(ModelPaths.Locate(modelsDirectory));
+            var engine = new AsrEngine(ModelPaths.Locate(modelsDirectory));
             lock (_lock)
             {
                 _engine = engine;
@@ -124,7 +124,7 @@ public sealed class DictationService : IDisposable
         }
     }
 
-    public ParakeetEngine? Engine
+    public AsrEngine? Engine
     {
         get { lock (_lock) return _engine; }
     }
@@ -172,7 +172,7 @@ public sealed class DictationService : IDisposable
         {
             if (_state != DictationState.Recording) return;
             samples = _recorder.Stop();
-            if (samples.Length < ParakeetEngine.SampleRate * 2 / 5)
+            if (samples.Length < AsrEngine.SampleRate * 2 / 5)
             {
                 _state = DictationState.Idle;
                 samples = Array.Empty<float>();
