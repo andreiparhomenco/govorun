@@ -55,6 +55,16 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; \
     ValueName: "Govorun"; ValueData: """{app}\{#AppExe}"" --autostart"; Tasks: autostart; Flags: uninsdeletevalue
 
+[InstallDelete]
+; Обновление поверх 0.1.x: веса Parakeet больше не нужны, но и не перезаписываются
+; новыми файлами — без этого в папке приложения навсегда оставалось бы 670 МБ мусора.
+Type: files; Name: "{app}\models\encoder-model.int8.onnx"
+Type: files; Name: "{app}\models\encoder-model.onnx"
+Type: files; Name: "{app}\models\decoder_joint-model.int8.onnx"
+Type: files; Name: "{app}\models\decoder_joint-model.onnx"
+Type: files; Name: "{app}\models\nemo128.onnx"
+Type: files; Name: "{app}\models\vocab.txt"
+
 [UninstallDelete]
 ; "Установил и забыл": подчищаем настройки и логи при удалении.
 Type: filesandordirs; Name: "{userappdata}\Govorun"

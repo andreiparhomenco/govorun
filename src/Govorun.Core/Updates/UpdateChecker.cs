@@ -35,13 +35,18 @@ public static class UpdateChecker
     public static Version CurrentVersion() =>
         Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0);
 
-    /// <summary>Returns the newer release, or null if up to date or the check failed.</summary>
-    public static async Task<UpdateInfo?> CheckAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Returns the newer release, or null if up to date or the check failed.
+    /// <paramref name="current"/> defaults to the running assembly's version; pass it
+    /// explicitly to test the live request (govorun-cli update-check 0.0.1), since the
+    /// CLI's own assembly reports 1.0.0.0 and would hide a working response.
+    /// </summary>
+    public static async Task<UpdateInfo?> CheckAsync(Version? current = null, CancellationToken cancellationToken = default)
     {
         try
         {
             var json = await Http.GetStringAsync(Links.LatestReleaseApi, cancellationToken).ConfigureAwait(false);
-            return ParseIfNewer(json, CurrentVersion());
+            return ParseIfNewer(json, current ?? CurrentVersion());
         }
         catch (Exception ex)
         {

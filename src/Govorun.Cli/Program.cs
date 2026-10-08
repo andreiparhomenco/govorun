@@ -12,6 +12,8 @@ if (args.Length == 0)
         Usage:
           govorun-cli bench [modelsDir]             Measure RTF on synthetic audio
           govorun-cli mem [modelsDir]               Private memory after load and 10/60/120 s runs
+          govorun-cli update-check [version]        Ask GitHub whether a newer release exists
+          govorun-cli model-info <model.onnx>       Print a model's inputs and outputs
           govorun-cli transcribe <file.wav> [dir]   Transcribe a wav file
           govorun-cli inject "<text>"               E2E test of text injection via Notepad
           govorun-cli mic [seconds]                 List capture devices, record, report RMS
@@ -45,6 +47,22 @@ if (command == "mic")
     double rms = recorded.Length > 0 ? Math.Sqrt(recorded.Select(x => (double)x * x).Average()) : 0;
     Console.WriteLine($"Samples: {recorded.Length} ({(double)recorded.Length / AsrEngine.SampleRate:F1} s @16kHz), RMS: {rms:F4}, peak level: {peak:F4}");
     return recorded.Length > 0 ? 0 : 1;
+}
+
+if (command == "update-check")
+{
+    // Exercises the real request: TLS, the User-Agent GitHub requires, and the parser.
+    // The CLI assembly has no version of its own (reports 1.0.0.0), which would make
+    // every real release look older — so pass a version to compare against.
+    var current = args.Length > 1 && Version.TryParse(args[1], out var v)
+        ? v
+        : Govorun.Core.Updates.UpdateChecker.CurrentVersion();
+    Console.WriteLine($"comparing against version: {current}");
+    var update = await Govorun.Core.Updates.UpdateChecker.CheckAsync(current);
+    Console.WriteLine(update is null
+        ? "no newer release (up to date, offline, or the check failed — see Serilog Debug)"
+        : $"update available: {update.Version} → {update.Url}");
+    return 0;
 }
 
 if (command == "model-info")
