@@ -15,8 +15,15 @@ public sealed class HistoryStore
 
     private readonly string _filePath;
     private readonly object _lock = new();
-    private readonly SemaphoreSlim _saveGate = new(1, 1);
     private List<HistoryEntry> _entries = new();
+
+    // Saves coalesce: one background loop writes until nothing is dirty, so a burst of
+    // dictations costs one or two writes instead of one per dictation — and awaiting
+    // _saveTask is a real "everything is on disk" signal, which per-Add tasks never gave.
+    private readonly object _saveLock = new();
+    private Task _saveTask = Task.CompletedTask;
+    private bool _saveRunning;
+    private bool _dirty;
 
     /// <summary>
     /// Raised after the in-memory list changes. Fired synchronously on whichever
@@ -51,7 +58,38 @@ public sealed class HistoryStore
                 _entries.RemoveRange(MaxEntries, _entries.Count - MaxEntries);
         }
         Changed?.Invoke();
-        _ = Task.Run(SaveAsync);
+        QueueSave();
+    }
+
+    private void QueueSave()
+    {
+        lock (_saveLock)
+        {
+            _dirty = true;
+            if (_saveRunning) return;
+            _saveRunning = true;
+            _saveTask = Task.Run(SaveLoopAsync);
+        }
+    }
+
+    private async Task SaveLoopAsync()
+    {
+        while (true)
+        {
+            lock (_saveLock)
+            {
+                if (!_dirty)
+                {
+                    _saveRunning = false;
+                    return;
+                }
+                _dirty = false;
+            }
+            Save();
+            // Give other adds a chance to mark the store dirty again, so a burst
+            // collapses into the next pass instead of queueing more writes.
+            await Task.Yield();
+        }
     }
 
     private void Load()
@@ -72,21 +110,13 @@ public sealed class HistoryStore
     }
 
     /// <summary>
-    /// Serializes writes through <see cref="_saveGate"/>: two dictations in quick
-    /// succession used to race two File.Write calls at the same path, and the loser's
-    /// IOException was swallowed below — silently dropping an entry.
+    /// Completes once everything added so far is on disk and no write is in flight.
+    /// Saves happen in the background, so without this a dictation made just before the
+    /// app closes could be lost when the process exits.
     /// </summary>
-    private async Task SaveAsync()
+    public Task FlushAsync()
     {
-        await _saveGate.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            Save();
-        }
-        finally
-        {
-            _saveGate.Release();
-        }
+        lock (_saveLock) return _saveTask;
     }
 
     private void Save()

@@ -15,17 +15,25 @@ public class HistoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void ConcurrentAddsProduceValidCappedFile()
+    public void ConcurrentAddsKeepTheListCapped()
     {
         var store = new HistoryStore(HistoryPath);
 
         Parallel.For(0, 50, i => store.Add($"dictation {i}"));
 
-        // Saves are queued on the thread pool; wait for the queue to drain.
-        WaitForFile(HistoryPath);
+        Assert.Equal(30, store.Entries.Count);
+    }
 
-        var json = File.ReadAllText(HistoryPath);
-        var loaded = JsonSerializer.Deserialize<List<HistoryEntry>>(json);
+    [Fact]
+    public async Task ConcurrentAddsProduceAValidFile()
+    {
+        var store = new HistoryStore(HistoryPath);
+        Parallel.For(0, 50, i => store.Add($"dictation {i}"));
+        // Deterministic: FlushAsync completes only when no write is in flight, so there
+        // is no window where the file is half-replaced or a .tmp still exists.
+        await store.FlushAsync();
+
+        var loaded = JsonSerializer.Deserialize<List<HistoryEntry>>(File.ReadAllText(HistoryPath));
         Assert.NotNull(loaded);
         Assert.Equal(30, loaded!.Count);
         Assert.False(File.Exists(HistoryPath + ".tmp"));
@@ -53,11 +61,11 @@ public class HistoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void ReloadsWhatWasSaved()
+    public async Task ReloadsWhatWasSaved()
     {
         var store = new HistoryStore(HistoryPath);
         store.Add("привет, мир");
-        WaitForFile(HistoryPath);
+        await store.FlushAsync();
 
         var reloaded = new HistoryStore(HistoryPath);
         Assert.Equal("привет, мир", reloaded.Entries.Single().Text);
@@ -72,14 +80,15 @@ public class HistoryStoreTests : IDisposable
         Assert.Empty(store.Entries);
     }
 
-    private static void WaitForFile(string path)
+    [Fact]
+    public async Task FlushWithNothingToSaveDoesNothing()
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (File.Exists(path) && new FileInfo(path).Length > 0) { Thread.Sleep(200); return; }
-            Thread.Sleep(50);
-        }
-        throw new TimeoutException($"History was never written to {path}");
+        var store = new HistoryStore(HistoryPath);
+
+        await store.FlushAsync();
+
+        // Nothing was added, so there is nothing to persist and no file to create.
+        Assert.False(File.Exists(HistoryPath));
     }
+
 }

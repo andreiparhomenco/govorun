@@ -35,6 +35,15 @@ dotnet test                     # тесты
 dotnet run --project src\Govorun.Cli -c Release -- bench models   # замер RTF
 ```
 
+## Скриншоты для лендинга
+
+```powershell
+# пересобрать картинки из самих окон (2x, капсула с прозрачным фоном)
+src\Govorun.App\bin\Release\net8.0-windows\Govorun.App.exe --shots docs\screenshots
+```
+
+Режим `--shots` работает, даже когда Govorun запущен, и не трогает настоящие настройки и историю.
+
 ## Релиз
 
 ```powershell

@@ -38,6 +38,17 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Developer mode for regenerating the landing-page images. Runs before the
+        // single-instance mutex on purpose, so it works while Govorun is running, and
+        // it never touches the real settings or history.
+        int shots = Array.FindIndex(e.Args, a => a.Equals("--shots", StringComparison.OrdinalIgnoreCase));
+        if (shots >= 0)
+        {
+            Diagnostics.ScreenshotMode.Run(shots + 1 < e.Args.Length ? e.Args[shots + 1] : "screenshots");
+            Shutdown();
+            return;
+        }
+
         _singleInstanceMutex = new Mutex(true, @"Global\Govorun.SingleInstance", out bool isNew);
         _ownsMutex = isNew;
         if (!isNew)
@@ -375,6 +386,9 @@ public partial class App : Application
         _updateTimer?.Stop();
         // Counters are only flushed every tenth dictation; keep the tail on exit.
         _settings.Save();
+        // History saves are fire-and-forget, so the last dictation can still be in
+        // flight. Bounded wait: a stuck disk must not hang the exit.
+        _historyStore?.FlushAsync().Wait(TimeSpan.FromSeconds(2));
         _hotkeys?.Dispose();
         _tray?.Dispose();
         _dictation?.Dispose();
