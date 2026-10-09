@@ -22,6 +22,7 @@ public partial class App : Application
     private Mutex? _singleInstanceMutex;
     private bool _ownsMutex;
     private AppSettings _settings = new();
+    private bool _settingsLoaded;
     private DictationService? _dictation;
     private HotkeyManager? _hotkeys;
     private TrayController? _tray;
@@ -81,6 +82,7 @@ public partial class App : Application
         };
 
         _settings = AppSettings.Load();
+        _settingsLoaded = true;
         _historyStore = new HistoryStore(AppSettings.HistoryPath);
 
         if (_settings.FirstRunUtc is null)
@@ -385,7 +387,10 @@ public partial class App : Application
         _deferredLoad?.Stop();
         _updateTimer?.Stop();
         // Counters are only flushed every tenth dictation; keep the tail on exit.
-        _settings.Save();
+        // Only when the file was actually read: OnExit also runs for a second instance
+        // and for --shots, where _settings is still an unloaded object of defaults, and
+        // saving it wiped the user's real mic, hotkey and onboarding flag.
+        if (_settingsLoaded) _settings.Save();
         // History saves are fire-and-forget, so the last dictation can still be in
         // flight. Bounded wait: a stuck disk must not hang the exit.
         _historyStore?.FlushAsync().Wait(TimeSpan.FromSeconds(2));
